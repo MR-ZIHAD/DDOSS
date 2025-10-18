@@ -1,0 +1,125 @@
+╔═══════════════════════════════════════════════════════════╗
+║     Simple Stress Tester - Quick Start Guide (Bangla)    ║
+╚═══════════════════════════════════════════════════════════╝
+
+🚀 INSTALLATION (3 Steps):
+
+1. Install Dependencies:
+   pip install flask flask-cors requests
+
+2. Run Server:
+   python api_server.py
+
+3. Open Browser:
+   http://localhost:5000
+
+
+💻 USAGE:
+
+Method 1 - Web Interface (Easy):
+   → Open http://localhost:5000 in browser
+   → Fill the form
+   → Click "Start Test"
+   → Watch real-time statistics!
+
+Method 2 - API (Advanced):
+   → Get API key from console
+   → Use curl or any HTTP client
+   → Send POST to /api/start
+
+
+📋 EXAMPLE ATTACKS:
+
+1. HTTP GET Test:
+   Method: GET
+   Target: https://yoursite.com
+   Duration: 60
+   Threads: 100
+
+2. TCP Flood Test:
+   Method: TCP
+   Target: 192.168.1.1:80
+   Duration: 120
+   Threads: 200
+
+3. Slowloris Test:
+   Method: SLOW
+   Target: yoursite.com:80
+   Duration: 300
+   Threads: 50
+
+
+⚠️  LEGAL WARNING:
+
+✅ Only test YOUR OWN servers
+✅ Get permission before testing
+✅ Educational purposes only
+❌ DO NOT attack others' servers
+❌ Illegal use is prohibited
+
+
+🔑 API KEY:
+
+Server start korar por console e API key dekhabe.
+Eta copy kore API requests e use korun.
+
+
+📊 FEATURES:
+
+✅ 5 Attack Methods (GET, POST, TCP, UDP, SLOW)
+✅ Web Interface (Beautiful UI)
+✅ REST API (JSON)
+✅ Real-time Statistics
+✅ Attack History
+✅ Token Authentication
+✅ 100% Original Code
+
+
+📞 TROUBLESHOOTING:
+
+Problem: "Address already in use"
+Solution: pkill -f api_server.py
+
+Problem: "Module not found"
+Solution: pip install -r requirements.txt
+
+Problem: "Connection refused"
+Solution: Check target URL and internet
+
+
+🎯 QUICK COMMANDS:
+
+# Install
+pip install flask flask-cors requests
+
+# Run
+python api_server.py
+
+# Test API
+curl http://localhost:5000/api/methods
+
+# Start Attack (replace YOUR_KEY)
+curl -X POST http://localhost:5000/api/start \
+  -H "Authorization: Bearer YOUR_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"method":"GET","target":"https://example.com","duration":60,"threads":100}'
+
+
+📚 FILES:
+
+stress_core.py    - Core attack engine
+api_server.py     - Web API server
+requirements.txt  - Dependencies
+README_BANGLA.md  - Full documentation
+
+
+✨ THAT'S IT!
+
+Simple, clean, and easy to use!
+100% original code - no copy!
+
+Happy Testing! 🚀
+(Use Responsibly! ⚠️)
+
+╚═══════════════════════════════════════════════════════════╝
+

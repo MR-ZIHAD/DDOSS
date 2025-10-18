@@ -1,0 +1,8 @@
+{
+  "api_key": "simple-stress-tester-2024",
+  "enable_auth": false,
+  "max_duration": 600,
+  "max_threads": 1000,
+  "port": 5000
+}
+
