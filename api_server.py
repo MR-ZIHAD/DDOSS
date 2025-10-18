@@ -1,53 +1,96 @@
 #!/usr/bin/env python3
 """
-Simple Stress Tester - API Server
-Web API for controlling stress tests
+Enhanced Stress Tester - More Powerful Version
+Optimized for maximum impact
 """
 
 from flask import Flask, request, jsonify, render_template_string
 from flask_cors import CORS
-import secrets
 import json
+import os
 from datetime import datetime
-from stress_core import StressTester
+from stress_core_enhanced import EnhancedStressTester
 
 app = Flask(__name__)
 CORS(app)
 
-# Global tester instance
-tester = StressTester()
+# Configuration
+CONFIG_FILE = 'config_enhanced.json'
 
-# API configuration
-API_KEY = secrets.token_hex(16)  # Generate random API key
+# Global tester instance
+tester = EnhancedStressTester()
 ATTACK_HISTORY = []
 
-# HTML Template for web interface
+def load_or_create_config():
+    """Load config or create default"""
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, 'r') as f:
+            return json.load(f)
+    else:
+        config = {
+            'api_key': 'enhanced-stress-2024',
+            'enable_auth': False,
+            'max_duration': 1800,
+            'max_threads': 5000,
+            'port': 5000,
+            'recommended_threads': {
+                'low_ram': 500,
+                'medium_ram': 1500,
+                'high_ram': 3000
+            }
+        }
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(config, f, indent=2)
+        return config
+
+CONFIG = load_or_create_config()
+API_KEY = CONFIG.get('api_key', 'enhanced-stress-2024')
+ENABLE_AUTH = CONFIG.get('enable_auth', False)
+
+# HTML Template
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Simple Stress Tester</title>
+    <title>Enhanced Stress Tester</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             min-height: 100vh;
             padding: 20px;
         }
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
             background: white;
             border-radius: 15px;
             padding: 30px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
         }
         h1 {
-            color: #667eea;
+            color: #f5576c;
             text-align: center;
             margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        .badge {
+            background: #ff6b6b;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-block;
+            margin-left: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 1.1em;
         }
         .warning {
             background: #fff3cd;
@@ -56,6 +99,25 @@ HTML_TEMPLATE = '''
             padding: 15px;
             margin: 20px 0;
             color: #856404;
+        }
+        .power-info {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .power-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .power-feature {
+            background: rgba(255,255,255,0.2);
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
         }
         .form-group {
             margin-bottom: 20px;
@@ -76,7 +138,12 @@ HTML_TEMPLATE = '''
         }
         input:focus, select:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #f5576c;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
         }
         .btn {
             width: 100%;
@@ -90,20 +157,16 @@ HTML_TEMPLATE = '''
             margin-top: 10px;
         }
         .btn-primary {
-            background: #667eea;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             color: white;
         }
         .btn-primary:hover {
-            background: #5568d3;
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
         }
         .btn-danger {
             background: #dc3545;
             color: white;
-        }
-        .btn-danger:hover {
-            background: #c82333;
         }
         .stats-box {
             background: #f8f9fa;
@@ -117,83 +180,80 @@ HTML_TEMPLATE = '''
             padding: 10px 0;
             border-bottom: 1px solid #dee2e6;
         }
-        .stat-item:last-child {
-            border-bottom: none;
-        }
-        .stat-label {
-            font-weight: 600;
-            color: #666;
-        }
         .stat-value {
             font-weight: 700;
-            color: #667eea;
+            color: #f5576c;
+            font-size: 1.2em;
         }
         .status-running {
             color: #28a745;
-            font-weight: 700;
+            animation: pulse 1.5s infinite;
         }
-        .status-stopped {
-            color: #dc3545;
-            font-weight: 700;
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
-        .api-info {
-            background: #e7f3ff;
-            border-left: 4px solid #2196F3;
-            padding: 15px;
-            margin-top: 20px;
-            border-radius: 5px;
-        }
-        .api-key {
-            background: #fff;
-            padding: 10px;
-            border-radius: 5px;
-            font-family: monospace;
-            word-break: break-all;
-            margin-top: 10px;
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🚀 Simple Stress Tester</h1>
-        <p style="text-align: center; color: #666; margin-bottom: 20px;">Educational Testing Tool</p>
+        <h1>⚡ Enhanced Stress Tester <span class="badge">POWERFUL</span></h1>
+        <p class="subtitle">Maximum Impact Testing Tool</p>
+        
+        <div class="power-info">
+            <h3 style="margin-bottom: 10px;">🚀 Enhanced Features:</h3>
+            <div class="power-features">
+                <div class="power-feature">✅ Keep-Alive Connections</div>
+                <div class="power-feature">✅ Cache Bypass</div>
+                <div class="power-feature">✅ Large Payloads</div>
+                <div class="power-feature">✅ Mixed Attacks</div>
+                <div class="power-feature">✅ Optimized Threading</div>
+                <div class="power-feature">✅ No Delays</div>
+            </div>
+        </div>
         
         <div class="warning">
-            <strong>⚠️ Legal Warning:</strong> Only test your own servers or servers you have permission to test. 
-            Unauthorized testing is illegal!
+            <strong>⚠️ POWERFUL TOOL:</strong> This enhanced version is significantly more powerful. 
+            Use ONLY on your own servers. Unauthorized use is ILLEGAL!
         </div>
         
         <div class="form-group">
             <label>Attack Method</label>
             <select id="method">
-                <option value="GET">HTTP GET Flood</option>
-                <option value="POST">HTTP POST Flood</option>
-                <option value="TCP">TCP Flood</option>
-                <option value="UDP">UDP Flood</option>
-                <option value="SLOW">Slowloris</option>
+                <option value="GET">HTTP GET Flood (Enhanced)</option>
+                <option value="POST">HTTP POST Flood (Enhanced)</option>
+                <option value="MIXED">Mixed Attack (GET + POST)</option>
+                <option value="TCP">TCP Flood (Enhanced)</option>
+                <option value="UDP">UDP Flood (Enhanced)</option>
+                <option value="SLOW">Slowloris (Enhanced)</option>
             </select>
         </div>
         
         <div class="form-group">
-            <label>Target (URL or IP:PORT)</label>
-            <input type="text" id="target" placeholder="https://example.com or 192.168.1.1:80">
+            <label>Target URL or IP:PORT</label>
+            <input type="text" id="target" placeholder="https://yoursite.com">
         </div>
         
-        <div class="form-group">
-            <label>Duration (seconds)</label>
-            <input type="number" id="duration" value="60" min="1" max="600">
+        <div class="grid">
+            <div class="form-group">
+                <label>Duration (seconds) - Max: {{ max_duration }}</label>
+                <input type="number" id="duration" value="120" min="10" max="{{ max_duration }}">
+            </div>
+            
+            <div class="form-group">
+                <label>Threads - Recommended: {{ recommended }}</label>
+                <input type="number" id="threads" value="{{ recommended }}" min="100" max="{{ max_threads }}">
+            </div>
         </div>
         
-        <div class="form-group">
-            <label>Threads</label>
-            <input type="number" id="threads" value="100" min="1" max="1000">
-        </div>
+        <button class="btn btn-primary" onclick="startAttack()">⚡ Launch Enhanced Attack</button>
+        <button class="btn btn-danger" onclick="stopAttack()">⏹️ Stop Attack</button>
         
-        <button class="btn btn-primary" onclick="startAttack()">Start Test</button>
-        <button class="btn btn-danger" onclick="stopAttack()">Stop Test</button>
-        
-        <div class="stats-box" id="stats">
-            <h3 style="margin-bottom: 15px;">📊 Statistics</h3>
+        <div class="stats-box">
+            <h3 style="margin-bottom: 15px;">📊 Real-time Statistics</h3>
             <div class="stat-item">
                 <span class="stat-label">Status:</span>
                 <span class="stat-value" id="status">Idle</span>
@@ -219,18 +279,18 @@ HTML_TEMPLATE = '''
                 <span class="stat-value" id="active-threads">0</span>
             </div>
         </div>
-        
-        <div class="api-info">
-            <strong>🔑 API Key:</strong>
-            <div class="api-key" id="apiKey">{{ api_key }}</div>
-            <p style="margin-top: 10px; font-size: 14px;">
-                Use this key for API requests: <code>Authorization: Bearer YOUR_KEY</code>
-            </p>
-        </div>
     </div>
     
     <script>
         let statsInterval;
+        const authEnabled = {{ 'true' if auth_enabled else 'false' }};
+        const apiKey = "{{ api_key }}";
+        
+        function getHeaders() {
+            const headers = {'Content-Type': 'application/json'};
+            if (authEnabled) headers['Authorization'] = 'Bearer ' + apiKey;
+            return headers;
+        }
         
         function startAttack() {
             const method = document.getElementById('method').value;
@@ -239,16 +299,17 @@ HTML_TEMPLATE = '''
             const threads = document.getElementById('threads').value;
             
             if (!target) {
-                alert('Please enter a target!');
+                alert('⚠️ Please enter a target!');
+                return;
+            }
+            
+            if (!confirm('⚠️ Are you sure you want to launch this POWERFUL attack?\\n\\nMake sure you have permission to test this target!')) {
                 return;
             }
             
             fetch('/api/start', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer {{ api_key }}'
-                },
+                headers: getHeaders(),
                 body: JSON.stringify({
                     method: method,
                     target: target,
@@ -259,49 +320,39 @@ HTML_TEMPLATE = '''
             .then(res => res.json())
             .then(data => {
                 if (data.status === 'started') {
-                    alert('Attack started successfully!');
+                    alert('⚡ Enhanced attack launched!\\n\\nMethod: ' + method + '\\nThreads: ' + threads);
                     startStatsUpdate();
                 } else {
-                    alert('Error: ' + (data.error || 'Unknown error'));
+                    alert('❌ Error: ' + (data.error || 'Unknown error'));
                 }
             })
-            .catch(err => {
-                alert('Error: ' + err.message);
-            });
+            .catch(err => alert('❌ Error: ' + err.message));
         }
         
         function stopAttack() {
             fetch('/api/stop', {
                 method: 'POST',
-                headers: {
-                    'Authorization': 'Bearer {{ api_key }}'
-                }
+                headers: getHeaders()
             })
             .then(res => res.json())
             .then(data => {
-                alert('Attack stopped!');
+                alert('⏹️ Attack stopped!\\n\\nTotal: ' + data.total_requests.toLocaleString() + ' requests\\nDuration: ' + data.duration.toFixed(2) + 's');
                 updateStats();
                 stopStatsUpdate();
             })
-            .catch(err => {
-                alert('Error: ' + err.message);
-            });
+            .catch(err => alert('❌ Error: ' + err.message));
         }
         
         function updateStats() {
-            fetch('/api/stats', {
-                headers: {
-                    'Authorization': 'Bearer {{ api_key }}'
-                }
-            })
+            fetch('/api/stats', {headers: getHeaders()})
             .then(res => res.json())
             .then(data => {
-                document.getElementById('status').textContent = data.status;
-                document.getElementById('status').className = data.status === 'running' ? 'status-running' : 'status-stopped';
-                document.getElementById('requests').textContent = data.requests;
-                document.getElementById('errors').textContent = data.errors;
+                document.getElementById('status').textContent = data.status.toUpperCase();
+                document.getElementById('status').className = 'stat-value status-' + data.status;
+                document.getElementById('requests').textContent = data.requests.toLocaleString();
+                document.getElementById('errors').textContent = data.errors.toLocaleString();
                 document.getElementById('duration-stat').textContent = data.duration + 's';
-                document.getElementById('rps').textContent = data.rps;
+                document.getElementById('rps').textContent = data.rps.toLocaleString();
                 document.getElementById('active-threads').textContent = data.active_threads;
             });
         }
@@ -312,12 +363,9 @@ HTML_TEMPLATE = '''
         }
         
         function stopStatsUpdate() {
-            if (statsInterval) {
-                clearInterval(statsInterval);
-            }
+            if (statsInterval) clearInterval(statsInterval);
         }
         
-        // Initial stats load
         updateStats();
     </script>
 </body>
@@ -325,41 +373,44 @@ HTML_TEMPLATE = '''
 '''
 
 def verify_api_key():
-    """Verify API key from request"""
+    if not ENABLE_AUTH:
+        return True
     auth = request.headers.get('Authorization')
     if not auth or not auth.startswith('Bearer '):
         return False
-    token = auth.split(' ')[1]
-    return token == API_KEY
+    return auth.split(' ')[1] == API_KEY
 
 @app.route('/')
 def index():
-    """Web interface"""
-    return render_template_string(HTML_TEMPLATE, api_key=API_KEY)
+    recommended = CONFIG.get('recommended_threads', {}).get('medium_ram', 1500)
+    return render_template_string(
+        HTML_TEMPLATE,
+        api_key=API_KEY,
+        auth_enabled=ENABLE_AUTH,
+        max_duration=CONFIG.get('max_duration', 1800),
+        max_threads=CONFIG.get('max_threads', 5000),
+        recommended=recommended
+    )
 
 @app.route('/api/start', methods=['POST'])
 def start_attack():
-    """Start attack"""
     if not verify_api_key():
         return jsonify({'error': 'Unauthorized'}), 401
     
     data = request.get_json()
-    
     if not data:
         return jsonify({'error': 'No data provided'}), 400
     
     method = data.get('method', 'GET')
     target = data.get('target')
-    duration = data.get('duration', 60)
-    threads = data.get('threads', 100)
+    duration = data.get('duration', 120)
+    threads = data.get('threads', 1000)
     
     if not target:
         return jsonify({'error': 'Target is required'}), 400
     
     try:
         result = tester.start_attack(method, target, duration, threads)
-        
-        # Log to history
         ATTACK_HISTORY.append({
             'timestamp': datetime.now().isoformat(),
             'method': method,
@@ -367,67 +418,52 @@ def start_attack():
             'duration': duration,
             'threads': threads
         })
-        
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/stop', methods=['POST'])
 def stop_attack():
-    """Stop attack"""
     if not verify_api_key():
         return jsonify({'error': 'Unauthorized'}), 401
-    
     try:
-        result = tester.stop_attack()
-        return jsonify(result)
+        return jsonify(tester.stop_attack())
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
-    """Get statistics"""
     if not verify_api_key():
         return jsonify({'error': 'Unauthorized'}), 401
-    
     return jsonify(tester.get_stats())
-
-@app.route('/api/history', methods=['GET'])
-def get_history():
-    """Get attack history"""
-    if not verify_api_key():
-        return jsonify({'error': 'Unauthorized'}), 401
-    
-    return jsonify({
-        'total': len(ATTACK_HISTORY),
-        'history': ATTACK_HISTORY[-20:]  # Last 20 attacks
-    })
 
 @app.route('/api/methods', methods=['GET'])
 def get_methods():
-    """Get available methods"""
     return jsonify({
-        'methods': ['GET', 'POST', 'TCP', 'UDP', 'SLOW'],
+        'methods': ['GET', 'POST', 'MIXED', 'TCP', 'UDP', 'SLOW'],
         'descriptions': {
-            'GET': 'HTTP GET flood attack',
-            'POST': 'HTTP POST flood attack',
-            'TCP': 'TCP connection flood',
-            'UDP': 'UDP packet flood',
-            'SLOW': 'Slowloris attack (slow HTTP)'
+            'GET': 'Enhanced HTTP GET flood with keep-alive',
+            'POST': 'Enhanced HTTP POST flood with large payloads',
+            'MIXED': 'Mixed attack (GET + POST combined)',
+            'TCP': 'Enhanced TCP flood',
+            'UDP': 'Enhanced UDP flood with large packets',
+            'SLOW': 'Enhanced Slowloris attack'
         }
     })
 
 if __name__ == '__main__':
-    print("=" * 60)
-    print("Simple Stress Tester - API Server")
-    print("=" * 60)
-    print(f"API Key: {API_KEY}")
+    print("=" * 70)
+    print("⚡ Enhanced Stress Tester - POWERFUL VERSION")
+    print("=" * 70)
+    print(f"🔑 API Key: {API_KEY}")
+    print(f"🔒 Auth: {'Enabled' if ENABLE_AUTH else 'Disabled'}")
+    print(f"🧵 Max Threads: {CONFIG.get('max_threads', 5000)}")
+    print(f"⏱️  Max Duration: {CONFIG.get('max_duration', 1800)}s")
     print("")
-    print("Web Interface: http://localhost:5000")
-    print("API Endpoint: http://localhost:5000/api/")
+    print(f"🌐 Web: http://localhost:{CONFIG.get('port', 5000)}")
     print("")
-    print("⚠️  WARNING: Only test your own servers!")
-    print("=" * 60)
+    print("⚠️  WARNING: This is a POWERFUL tool!")
+    print("   Only test YOUR OWN servers!")
+    print("=" * 70)
     
-    app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
-
+    app.run(host='0.0.0.0', port=CONFIG.get('port', 5000), debug=False, threaded=True)
